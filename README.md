@@ -57,6 +57,73 @@ Example response:
 }
 ```
 
+## Whisper Research
+
+Before implementing anything, several transcription options were evaluated.
+
+### Options considered
+
+**Cloud API providers**
+
+Services like AssemblyAI, Deepgram, and Rev AI offer transcription via API. You upload audio, they return text. The tradeoff is cost — all of them charge per minute of audio and require an API key. For a portfolio project with unknown traffic, a usage-based cost was a risk worth avoiding.
+
+OpenAI's Whisper API (via api.openai.com) is the same model used locally but hosted by OpenAI. It's fast and accurate but still requires billing credentials and sends audio to an external server.
+
+**Running Whisper locally**
+
+OpenAI released Whisper as open-source in 2022. The model weights are public and free to use. The question was how to run it in a Node.js backend without Python.
+
+Two JavaScript packages were found:
+
+- `@xenova/transformers` — the original JavaScript port of Hugging Face Transformers, runs Whisper via ONNX Runtime in the browser or Node.js
+- `@huggingface/transformers` — the v3 successor to `@xenova/transformers`, maintained by Hugging Face
+
+`@xenova/transformers` was ruled out because installing it introduced critical vulnerabilities through its `onnxruntime-web` → `onnx-proto` → `protobufjs` dependency chain with no clean fix available.
+
+`@huggingface/transformers` (v3) installed with 0 vulnerabilities and was chosen.
+
+### Problem discovered during implementation
+
+Running the pipeline in Node.js threw this error:
+
+```
+Unable to load audio from path/URL since AudioContext is not available in your environment.
+```
+
+`AudioContext` is a browser API — it doesn't exist in Node.js. The library expected the runtime to handle audio decoding, which works fine in a browser but fails on a server.
+
+**The fix**: decode the audio outside the model using `ffmpeg-static`, a package that ships a bundled ffmpeg binary. ffmpeg converts any uploaded file to 16 kHz mono PCM float samples, which are then passed directly to the model as a `Float32Array`. This bypasses the `AudioContext` requirement entirely and adds support for every audio and video format ffmpeg handles.
+
+### Model sizes and tradeoffs
+
+Whisper comes in several sizes. All run locally with no API key.
+
+| Model | Size | Speed | Accuracy |
+|---|---|---|---|
+| `whisper-tiny.en` | ~75 MB | Fastest | Lower |
+| `whisper-base.en` | ~145 MB | Fast | Better |
+| `whisper-small.en` | ~460 MB | Moderate | Good |
+| `whisper-medium.en` | ~1.5 GB | Slow | High |
+
+The `.en` suffix means English-only. Multi-language versions are also available without the suffix and are slightly larger.
+
+`whisper-tiny.en` was chosen for the prototype — fast enough to verify the pipeline works, easy to swap out for a larger model later.
+
+### What was confirmed working
+
+The full pipeline was tested end-to-end:
+
+1. Audio file uploaded via the React frontend
+2. Saved temporarily to disk by Multer
+3. Decoded to raw PCM samples by ffmpeg
+4. Passed to `whisper-tiny.en` via `@huggingface/transformers`
+5. Transcription returned as JSON
+6. Temporary file deleted from disk
+
+The implementation was then removed from the codebase and documented below so the repo stays lightweight. The mock backend is sufficient for demonstrating the product flow.
+
+---
+
 ## Adding Real AI Transcription (Whisper — free, runs locally)
 
 The backend is structured so the mock in `server.js` can be swapped for a real model with minimal changes. The following approach was prototyped and confirmed working end-to-end.
