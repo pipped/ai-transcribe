@@ -63,24 +63,14 @@ Before implementing anything, several transcription options were evaluated.
 
 ### Options considered
 
-**Cloud API providers**
+| Option | Problem |
+|---|---|
+| AssemblyAI / Deepgram / Rev AI | Paid per-minute, requires API key — usage-based cost for a portfolio project with unknown traffic |
+| OpenAI Whisper API | Same model, hosted by OpenAI — still requires billing credentials and sends audio off-machine |
+| `@xenova/transformers` | Critical vulnerabilities via `onnxruntime-web` → `onnx-proto` → `protobufjs` with no clean fix |
+| **`@huggingface/transformers` v3** | **0 vulnerabilities — chosen** |
 
-Services like AssemblyAI, Deepgram, and Rev AI offer transcription via API. You upload audio, they return text. The tradeoff is cost — all of them charge per minute of audio and require an API key. For a portfolio project with unknown traffic, a usage-based cost was a risk worth avoiding.
-
-OpenAI's Whisper API (via api.openai.com) is the same model used locally but hosted by OpenAI. It's fast and accurate but still requires billing credentials and sends audio to an external server.
-
-**Running Whisper locally**
-
-OpenAI released Whisper as open-source in 2022. The model weights are public and free to use. The question was how to run it in a Node.js backend without Python.
-
-Two JavaScript packages were found:
-
-- `@xenova/transformers` — the original JavaScript port of Hugging Face Transformers, runs Whisper via ONNX Runtime in the browser or Node.js
-- `@huggingface/transformers` — the v3 successor to `@xenova/transformers`, maintained by Hugging Face
-
-`@xenova/transformers` was ruled out because installing it introduced critical vulnerabilities through its `onnxruntime-web` → `onnx-proto` → `protobufjs` dependency chain with no clean fix available.
-
-`@huggingface/transformers` (v3) installed with 0 vulnerabilities and was chosen.
+`@huggingface/transformers` is the v3 successor to `@xenova/transformers`, maintained by Hugging Face. It runs OpenAI's Whisper model entirely on your machine via ONNX Runtime — no API key, no cloud, no cost. The model weights (~75 MB for `whisper-tiny.en`) download once and are cached locally.
 
 ### Problem discovered during implementation
 
@@ -121,6 +111,10 @@ The full pipeline was tested end-to-end:
 6. Temporary file deleted from disk
 
 The implementation was then removed from the codebase and documented below so the repo stays lightweight. The mock backend is sufficient for demonstrating the product flow.
+
+### Current state
+
+The backend currently returns mocked output so the repo stays portable and dependency-free. The full Whisper implementation is documented in the next section and can be dropped in with two `npm install` commands — nothing else needs to change.
 
 ---
 
