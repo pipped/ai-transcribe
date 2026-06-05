@@ -362,7 +362,7 @@ export default function Landing({ onGetStarted }) {
                     </svg>
                   ))}
                 </div>
-                <p className="flex-1 text-sm leading-relaxed text-zinc-400">"{t.quote}"</p>
+                <p className="flex-1 text-sm leading-relaxed text-zinc-400">&ldquo;{t.quote}&rdquo;</p>
                 <div className="mt-5 flex items-center gap-3">
                   <div
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
