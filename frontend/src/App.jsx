@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
+import { AIVoiceInput } from '@/components/ui/ai-voice-input'
 
 const API_URL = 'http://localhost:3000/transcribe'
 const HISTORY_STORAGE_KEY = 'ai-transcribe-history'
@@ -177,8 +178,8 @@ function App({ onBack }) {
   const stats = useMemo(
     () => [
       { label: 'Max file size', value: '50 MB' },
-      { label: 'Formats', value: 'Audio & Video' },
-      { label: 'Saved locally', value: String(history.length) }
+      { label: 'Avg summary time', value: '< 30 sec' },
+      { label: 'Transcripts saved', value: String(history.length) }
     ],
     [history.length]
   )
@@ -198,6 +199,17 @@ function App({ onBack }) {
   const handleFileChange = (event) => {
     const nextFile = event.target.files?.[0] ?? null
     setSelectedFile(nextFile)
+  }
+
+  const handleVoiceStart = () => {
+    setError('')
+    setNotice('Recording… speak now, then click the icon again to stop.')
+  }
+
+  const handleVoiceStop = (duration) => {
+    if (duration > 0) {
+      setNotice(`Captured a ${duration}s voice note. Hook this up to the backend to transcribe live audio.`)
+    }
   }
 
   const handleDragOver = (event) => {
@@ -247,7 +259,7 @@ function App({ onBack }) {
     setFile(null)
     setResult(demoResult)
     setError('')
-    setNotice('Sample transcript loaded.')
+    setNotice('Showing a sample lecture transcript — upload your own recording to try it for real.')
     saveToHistory(demoResult)
   }
 
@@ -270,7 +282,7 @@ function App({ onBack }) {
     link.download = `${result.fileName.replace(/\.[^.]+$/, '') || 'transcript'}.txt`
     link.click()
     URL.revokeObjectURL(url)
-    setNotice('Transcript exported.')
+    setNotice('Exported — open it in Notion, Google Docs, or your notes app.')
   }
 
   return (
@@ -311,14 +323,14 @@ function App({ onBack }) {
             <div className="pointer-events-none absolute inset-0 rounded-2xl" style={{ background: 'radial-gradient(ellipse at 18% 55%, rgba(20,184,166,0.07) 0%, transparent 62%)' }} />
             <div className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full" style={{ background: 'radial-gradient(circle, rgba(13,148,136,0.08) 0%, transparent 70%)' }} />
             <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-teal-700">
-              Audio &amp; Video Intelligence
+              Stop re-watching 2-hour lectures
             </p>
             <h1 className="max-w-xl text-[2rem] font-semibold leading-[1.2] tracking-tight text-white">
-              Turn recordings into structured insights.
+              Upload a recording. Walk away with notes.
             </h1>
             <p className="mt-4 max-w-lg text-sm leading-[1.75] text-[#5a7070]">
-              Drop any audio or video file to get a full transcript, concise summary, key
-              takeaways, and extracted action items — automatically.
+              Drop any lecture, seminar, or voice memo and get a full transcript, tight summary,
+              key concepts, and action items — automatically, before you even close your laptop.
             </p>
             <div className="mt-8 flex flex-wrap gap-2">
               {stats.map((stat) => (
@@ -334,7 +346,7 @@ function App({ onBack }) {
           </div>
 
           {/* Upload */}
-          <SectionCard title="Upload">
+          <SectionCard title="Add your recording">
             {/* Drop zone */}
             <div
               onDragOver={handleDragOver}
@@ -357,7 +369,7 @@ function App({ onBack }) {
                   <UploadIcon />
                 </div>
                 <p className="text-sm font-medium text-zinc-300">
-                  {isDragging ? 'Drop to upload' : 'Drag a file here or click to browse'}
+                  {isDragging ? 'Drop to upload' : 'Drop your lecture recording here'}
                 </p>
                 <p className="mt-1 text-xs text-[#3a3a3a]">MP3, WAV, MP4, MOV and more · 50 MB max</p>
               </label>
@@ -368,6 +380,16 @@ function App({ onBack }) {
                 onChange={handleFileChange}
                 className="sr-only"
               />
+            </div>
+
+            {/* Voice input */}
+            <div className="my-3 flex items-center gap-3 text-[10px] uppercase tracking-[0.15em] text-[#2a3a3a]">
+              <span className="h-px flex-1 bg-[#141f1f]" />
+              or record with your mic
+              <span className="h-px flex-1 bg-[#141f1f]" />
+            </div>
+            <div className="rounded-xl border border-[#141f1f] bg-[#060c0c]">
+              <AIVoiceInput onStart={handleVoiceStart} onStop={handleVoiceStop} />
             </div>
 
             {/* Selected file */}
@@ -413,17 +435,17 @@ function App({ onBack }) {
                 {loading ? (
                   <>
                     <Spinner />
-                    Transcribing…
+                    Working on it…
                   </>
                 ) : (
-                  'Generate transcript'
+                  'Get my notes'
                 )}
               </button>
               <button
                 onClick={handleLoadDemo}
                 className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-xl border border-[#1a2828] bg-transparent px-4 py-2.5 text-sm font-medium text-[#4a6060] transition-colors duration-150 hover:bg-[#0d1414] hover:text-zinc-300"
               >
-                Load sample
+                See a sample
               </button>
             </div>
           </SectionCard>
@@ -434,7 +456,7 @@ function App({ onBack }) {
           <div className="space-y-3">
             {/* Transcript */}
             <SectionCard
-              title="Transcript"
+              title="Full transcript"
               action={
                 result ? (
                   <div className="flex flex-wrap gap-1.5">
@@ -467,22 +489,22 @@ function App({ onBack }) {
                   <p className="text-sm leading-7 text-zinc-300">{result.transcription}</p>
                 </div>
               ) : (
-                <EmptyState>Upload a file or load the sample to see the transcript.</EmptyState>
+                <EmptyState>Upload a recording or hit "See a sample" to watch it work.</EmptyState>
               )}
             </SectionCard>
 
             <div className="grid gap-3 md:grid-cols-2">
               {/* Summary */}
-              <SectionCard title="Summary">
+              <SectionCard title="TL;DR summary">
                 {result ? (
                   <p className="text-sm leading-7 text-zinc-400">{result.summary}</p>
                 ) : (
-                  <EmptyState>A concise summary will appear here after generating a transcript.</EmptyState>
+                  <EmptyState>The short version of your lecture — perfect for a quick refresh before an exam.</EmptyState>
                 )}
               </SectionCard>
 
               {/* Recent */}
-              <SectionCard title="Recent" badge={history.length}>
+              <SectionCard title="Recent transcripts" badge={history.length}>
                 <div className="space-y-2">
                   {history.map((entry) => (
                     <article
@@ -508,8 +530,8 @@ function App({ onBack }) {
 
           {/* Right column */}
           <div className="space-y-3">
-            {/* Key Points */}
-            <SectionCard title="Key Points" badge={result?.keyPoints?.length ?? null}>
+            {/* Key Concepts */}
+            <SectionCard title="Key concepts" badge={result?.keyPoints?.length ?? null}>
               <div className="space-y-2">
                 {result?.keyPoints ? (
                   result.keyPoints.map((point, i) => (
@@ -524,13 +546,13 @@ function App({ onBack }) {
                     </div>
                   ))
                 ) : (
-                  <EmptyState>Key takeaways will appear here after a transcript is generated.</EmptyState>
+                  <EmptyState>The big ideas from your lecture land here — great for flashcards or a study guide.</EmptyState>
                 )}
               </div>
             </SectionCard>
 
-            {/* Action Items */}
-            <SectionCard title="Action Items" badge={result?.actionItems?.length ?? null}>
+            {/* To-do & follow-ups */}
+            <SectionCard title="To-do & follow-ups" badge={result?.actionItems?.length ?? null}>
               <div className="space-y-2">
                 {result?.actionItems ? (
                   result.actionItems.map((item, i) => (
@@ -545,7 +567,7 @@ function App({ onBack }) {
                     </div>
                   ))
                 ) : (
-                  <EmptyState>Action items will appear here after a transcript is generated.</EmptyState>
+                  <EmptyState>Assignments, readings, and anything your prof said to "make sure you know" show up here.</EmptyState>
                 )}
               </div>
             </SectionCard>
