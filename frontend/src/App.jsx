@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import { AIVoiceInput } from '@/components/ui/ai-voice-input'
+import { SilkBackground } from '@/components/ui/silk-background-animation'
+import { Boxes } from '@/components/ui/background-boxes'
 
 const API_URL = 'http://localhost:3000/transcribe'
 const HISTORY_STORAGE_KEY = 'ai-transcribe-history'
@@ -111,15 +113,15 @@ function UploadIcon({ size = 18 }) {
 
 function EmptyState({ children }) {
   return (
-    <div className="rounded-xl border border-dashed border-teal-900/30 px-6 py-10 text-center">
-      <p className="text-xs leading-6 text-[#3a5050]">{children}</p>
+    <div className="rounded-xl border border-dashed border-white/15 px-6 py-10 text-center">
+      <p className="text-xs leading-6 text-white/40">{children}</p>
     </div>
   )
 }
 
 function Badge({ children }) {
   return (
-    <span className="rounded-full border border-teal-900/60 bg-teal-950/50 px-2 py-0.5 text-[10px] tabular-nums text-teal-500">
+    <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] tabular-nums text-white/60">
       {children}
     </span>
   )
@@ -129,7 +131,7 @@ function GhostButton({ onClick, children }) {
   return (
     <button
       onClick={onClick}
-      className="cursor-pointer rounded-lg border border-[#1e2d2d] px-3 py-1.5 text-xs text-zinc-500 transition-colors duration-150 hover:border-[#2a3838] hover:bg-[#0f1a1a] hover:text-zinc-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-teal-400/20"
+      className="cursor-pointer rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/40 transition-colors duration-150 hover:border-white/30 hover:bg-white/5 hover:text-white/80 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
     >
       {children}
     </button>
@@ -138,15 +140,19 @@ function GhostButton({ onClick, children }) {
 
 function SectionCard({ title, children, action, badge }) {
   return (
-    <section className="rounded-2xl border border-[#141f1f] bg-[#090f0f] p-6">
-      <div className="mb-5 flex items-center justify-between gap-3">
+    <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-black p-6">
+      <Boxes />
+      <div className="absolute inset-0 w-full h-full bg-black z-10 [mask-image:radial-gradient(transparent,white)] pointer-events-none rounded-2xl" />
+      <div className="relative z-20 mb-5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-[10px] font-semibold uppercase tracking-[0.11em] text-teal-700">{title}</h3>
+          <h3 className="text-[10px] font-semibold uppercase tracking-[0.11em] text-white/50">{title}</h3>
           {badge !== undefined && badge !== null && <Badge>{badge}</Badge>}
         </div>
         {action}
       </div>
-      {children}
+      <div className="relative z-20">
+        {children}
+      </div>
     </section>
   )
 }
@@ -286,14 +292,16 @@ function App({ onBack }) {
   }
 
   return (
-    <main className="min-h-screen bg-[#050909] text-zinc-100">
+    <div className="relative min-h-screen">
+      <SilkBackground />
+    <main className="relative z-10 min-h-screen overflow-y-auto text-zinc-100">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-[#0d1a1a] bg-[#050909]/90 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-b border-white/10 bg-black/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-teal-500 shadow-[0_0_14px_rgba(20,184,166,0.5)]">
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-white/90">
               <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                <path d="M7 1L9.5 5.5H12L8.5 8L10 13L7 10L4 13L5.5 8L2 5.5H4.5L7 1Z" fill="white" />
+                <path d="M7 1L9.5 5.5H12L8.5 8L10 13L7 10L4 13L5.5 8L2 5.5H4.5L7 1Z" fill="black" />
               </svg>
             </div>
             <span className="text-sm font-semibold tracking-tight text-white">AI Transcribe</span>
@@ -302,12 +310,12 @@ function App({ onBack }) {
             {onBack && (
               <button
                 onClick={onBack}
-                className="cursor-pointer text-[11px] text-[#3a5050] transition-colors duration-150 hover:text-zinc-400"
+                className="cursor-pointer text-[11px] text-slate-400 transition-colors duration-150 hover:text-slate-300"
               >
                 ← Home
               </button>
             )}
-            <div className="flex items-center gap-1.5 text-[11px] text-[#3a5050]">
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
               <span className="h-1 w-1 rounded-full bg-emerald-400 shadow-[0_0_6px_2px_rgba(52,211,153,0.5)]" />
               v0.1.0
             </div>
@@ -319,26 +327,26 @@ function App({ onBack }) {
         {/* Top row — Hero + Upload */}
         <section className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
           {/* Hero */}
-          <div className="relative overflow-hidden rounded-2xl border border-[#121c1c] bg-[#080e0e] px-8 py-10">
-            <div className="pointer-events-none absolute inset-0 rounded-2xl" style={{ background: 'radial-gradient(ellipse at 18% 55%, rgba(20,184,166,0.07) 0%, transparent 62%)' }} />
-            <div className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full" style={{ background: 'radial-gradient(circle, rgba(13,148,136,0.08) 0%, transparent 70%)' }} />
-            <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-teal-700">
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black px-8 py-10">
+            <Boxes />
+            <div className="absolute inset-0 w-full h-full bg-black z-10 [mask-image:radial-gradient(transparent,white)] pointer-events-none rounded-2xl" />
+            <p className="relative z-20 mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/50">
               Stop re-watching 2-hour lectures
             </p>
-            <h1 className="max-w-xl text-[2rem] font-semibold leading-[1.2] tracking-tight text-white">
+            <h1 className="relative z-20 max-w-xl text-[2rem] font-semibold leading-[1.2] tracking-tight text-white">
               Upload a recording. Walk away with notes.
             </h1>
-            <p className="mt-4 max-w-lg text-sm leading-[1.75] text-[#5a7070]">
+            <p className="relative z-20 mt-4 max-w-lg text-sm leading-[1.75] text-slate-300">
               Drop any lecture, seminar, or voice memo and get a full transcript, tight summary,
               key concepts, and action items — automatically, before you even close your laptop.
             </p>
-            <div className="mt-8 flex flex-wrap gap-2">
+            <div className="relative z-20 mt-8 flex flex-wrap gap-2">
               {stats.map((stat) => (
                 <div
                   key={stat.label}
-                  className="min-w-[110px] rounded-xl border border-[#152020] bg-[#0c1212] px-4 py-3 transition-colors duration-200 hover:border-[#1e2e2e]"
+                  className="min-w-[110px] rounded-xl border border-white/10 bg-white/5 px-4 py-3 transition-colors duration-200 hover:border-white/20"
                 >
-                  <p className="text-[10px] uppercase tracking-[0.09em] text-[#3a5050]">{stat.label}</p>
+                  <p className="text-[10px] uppercase tracking-[0.09em] text-white/40">{stat.label}</p>
                   <p className="mt-1.5 text-lg font-semibold text-white">{stat.value}</p>
                 </div>
               ))}
@@ -354,24 +362,24 @@ function App({ onBack }) {
               onDrop={handleDrop}
               className={`rounded-xl border-2 border-dashed p-7 text-center transition-all duration-200 ${
                 isDragging
-                  ? 'border-teal-500 bg-teal-950/10 shadow-[0_0_40px_rgba(20,184,166,0.07)]'
-                  : 'border-[#1a2424] bg-[#060c0c] hover:border-[#213030]'
+                  ? 'border-white/50 bg-white/5 shadow-[0_0_40px_rgba(255,255,255,0.05)]'
+                  : 'border-white/15 bg-white/5 hover:border-white/25'
               }`}
             >
               <label htmlFor="media-upload" className="block cursor-pointer select-none">
                 <div
                   className={`mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl border transition-colors duration-200 ${
                     isDragging
-                      ? 'border-teal-500 text-teal-400'
-                      : 'border-[#1e2a2a] bg-[#0c1212] text-[#3a5050]'
+                      ? 'border-white/50 text-white'
+                      : 'border-white/15 bg-white/5 text-white/50'
                   }`}
                 >
                   <UploadIcon />
                 </div>
-                <p className="text-sm font-medium text-zinc-300">
+                <p className="text-sm font-medium text-white/90">
                   {isDragging ? 'Drop to upload' : 'Drop your lecture recording here'}
                 </p>
-                <p className="mt-1 text-xs text-[#3a3a3a]">MP3, WAV, MP4, MOV and more · 50 MB max</p>
+                <p className="mt-1 text-xs text-slate-500">MP3, WAV, MP4, MOV and more · 50 MB max</p>
               </label>
               <input
                 id="media-upload"
@@ -383,30 +391,30 @@ function App({ onBack }) {
             </div>
 
             {/* Voice input */}
-            <div className="my-3 flex items-center gap-3 text-[10px] uppercase tracking-[0.15em] text-[#2a3a3a]">
-              <span className="h-px flex-1 bg-[#141f1f]" />
+            <div className="my-3 flex items-center gap-3 text-[10px] uppercase tracking-[0.15em] text-white/30">
+              <span className="h-px flex-1 bg-white/10" />
               or record with your mic
-              <span className="h-px flex-1 bg-[#141f1f]" />
+              <span className="h-px flex-1 bg-white/10" />
             </div>
-            <div className="rounded-xl border border-[#141f1f] bg-[#060c0c]">
+            <div className="rounded-xl border border-white/10 bg-white/5">
               <AIVoiceInput onStart={handleVoiceStart} onStop={handleVoiceStop} />
             </div>
 
             {/* Selected file */}
             <div
               className={`mt-3 rounded-xl border px-4 py-3 transition-colors duration-200 ${
-                file ? 'border-teal-900/50 bg-[#091212]' : 'border-[#141f1f] bg-[#060c0c]'
+                file ? 'border-white/25 bg-white/8' : 'border-white/10 bg-white/5'
               }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-[0.09em] text-[#3a5050]">Selected file</p>
-                  <p className={`mt-1 truncate text-sm ${file ? 'text-teal-300' : 'text-[#2a3a3a]'}`}>
+                  <p className="text-[10px] uppercase tracking-[0.09em] text-slate-400">Selected file</p>
+                  <p className={`mt-1 truncate text-sm ${file ? 'text-white/90' : 'text-white/30'}`}>
                     {file ? file.name : 'None'}
                   </p>
                 </div>
                 {file && (
-                  <span className="shrink-0 rounded-md border border-teal-900/50 bg-teal-950/40 px-2 py-0.5 text-xs text-teal-500">
+                  <span className="shrink-0 rounded-md border border-white/20 bg-white/10 px-2 py-0.5 text-xs text-white/60">
                     {formatFileSize(file.size)}
                   </span>
                 )}
@@ -430,7 +438,7 @@ function App({ onBack }) {
               <button
                 onClick={handleUpload}
                 disabled={!file || loading}
-                className="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(13,148,136,0.3)] transition-all duration-150 hover:bg-teal-500 hover:shadow-[0_0_32px_rgba(20,184,166,0.4)] disabled:cursor-not-allowed disabled:bg-[#141f1f] disabled:text-[#3a5050] disabled:shadow-none"
+                className="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black shadow-[0_0_20px_rgba(255,255,255,0.15)] transition-all duration-150 hover:bg-white/90 hover:shadow-[0_0_32px_rgba(255,255,255,0.2)] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none"
               >
                 {loading ? (
                   <>
@@ -443,7 +451,7 @@ function App({ onBack }) {
               </button>
               <button
                 onClick={handleLoadDemo}
-                className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-xl border border-[#1a2828] bg-transparent px-4 py-2.5 text-sm font-medium text-[#4a6060] transition-colors duration-150 hover:bg-[#0d1414] hover:text-zinc-300"
+                className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-xl border border-white/15 bg-transparent px-4 py-2.5 text-sm font-medium text-white/40 transition-colors duration-150 hover:bg-white/5 hover:text-white/80"
               >
                 See a sample
               </button>
@@ -468,7 +476,7 @@ function App({ onBack }) {
                     </GhostButton>
                     <button
                       onClick={handleDownload}
-                      className="cursor-pointer rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_0_14px_rgba(13,148,136,0.25)] transition-all duration-150 hover:bg-teal-500 hover:shadow-[0_0_20px_rgba(20,184,166,0.35)] focus:outline-none focus-visible:ring-1 focus-visible:ring-teal-400/30"
+                      className="cursor-pointer rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-black shadow-[0_0_14px_rgba(255,255,255,0.15)] transition-all duration-150 hover:bg-white/90 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] focus:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
                     >
                       Export .txt
                     </button>
@@ -479,14 +487,14 @@ function App({ onBack }) {
               {result ? (
                 <div>
                   <div className="mb-5 flex flex-wrap items-center gap-1.5">
-                    <span className="rounded-md border border-teal-900/50 bg-teal-950/40 px-2.5 py-1 text-xs text-teal-300">
+                    <span className="rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-xs text-white/80">
                       {result.fileName}
                     </span>
-                    <span className="rounded-md border border-[#1a2828] bg-[#0c1212] px-2.5 py-1 text-xs text-[#3a5050]">
+                    <span className="rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/40">
                       {formatFileSize(result.fileSize)}
                     </span>
                   </div>
-                  <p className="text-sm leading-7 text-zinc-300">{result.transcription}</p>
+                  <p className="text-sm leading-7 text-white/90">{result.transcription}</p>
                 </div>
               ) : (
                 <EmptyState>Upload a recording or hit "See a sample" to watch it work.</EmptyState>
@@ -497,7 +505,7 @@ function App({ onBack }) {
               {/* Summary */}
               <SectionCard title="TL;DR summary">
                 {result ? (
-                  <p className="text-sm leading-7 text-zinc-400">{result.summary}</p>
+                  <p className="text-sm leading-7 text-slate-300">{result.summary}</p>
                 ) : (
                   <EmptyState>The short version of your lecture — perfect for a quick refresh before an exam.</EmptyState>
                 )}
@@ -509,18 +517,18 @@ function App({ onBack }) {
                   {history.map((entry) => (
                     <article
                       key={entry.id}
-                      className="cursor-pointer rounded-xl border border-[#111a1a] bg-[#060d0d] p-3 transition-colors duration-150 hover:border-[#1a2e2e] hover:bg-[#091212]"
+                      className="cursor-pointer rounded-xl border border-white/10 bg-white/5 p-3 transition-colors duration-150 hover:border-white/20 hover:bg-white/8"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <h4 className="truncate text-xs font-medium text-zinc-300">{entry.fileName}</h4>
-                          <p className="mt-0.5 text-[11px] text-[#3a5050]">{formatDate(entry.createdAt)}</p>
+                          <h4 className="truncate text-xs font-medium text-white/90">{entry.fileName}</h4>
+                          <p className="mt-0.5 text-[11px] text-slate-400">{formatDate(entry.createdAt)}</p>
                         </div>
-                        <span className="shrink-0 text-[11px] tabular-nums text-[#3a5050]">
+                        <span className="shrink-0 text-[11px] tabular-nums text-slate-400">
                           {formatFileSize(entry.fileSize)}
                         </span>
                       </div>
-                      <p className="mt-2 text-xs leading-5 text-[#3a5050]">{entry.summary}</p>
+                      <p className="mt-2 text-xs leading-5 text-slate-400">{entry.summary}</p>
                     </article>
                   ))}
                 </div>
@@ -537,12 +545,12 @@ function App({ onBack }) {
                   result.keyPoints.map((point, i) => (
                     <div
                       key={point}
-                      className="flex items-start gap-3 rounded-xl border border-[#111a1a] bg-[#060d0d] px-4 py-3"
+                      className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3"
                     >
-                      <span className="mt-0.5 shrink-0 text-[10px] font-semibold tabular-nums text-teal-700">
+                      <span className="mt-0.5 shrink-0 text-[10px] font-semibold tabular-nums text-white/40">
                         {String(i + 1).padStart(2, '0')}
                       </span>
-                      <p className="text-xs leading-5 text-zinc-400">{point}</p>
+                      <p className="text-xs leading-5 text-slate-300">{point}</p>
                     </div>
                   ))
                 ) : (
@@ -558,12 +566,12 @@ function App({ onBack }) {
                   result.actionItems.map((item, i) => (
                     <div
                       key={item}
-                      className="flex items-start gap-3 rounded-xl border border-[#111a1a] bg-[#060d0d] px-4 py-3"
+                      className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3"
                     >
-                      <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-teal-900/60 bg-teal-950/50 text-[9px] font-bold text-teal-500">
+                      <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-[9px] font-bold text-white/60">
                         {i + 1}
                       </span>
-                      <p className="text-xs leading-5 text-zinc-400">{item}</p>
+                      <p className="text-xs leading-5 text-slate-300">{item}</p>
                     </div>
                   ))
                 ) : (
@@ -575,7 +583,9 @@ function App({ onBack }) {
         </section>
       </div>
     </main>
+    </div>
   )
 }
 
 export default App
+
