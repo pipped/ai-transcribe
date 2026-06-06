@@ -1,5 +1,21 @@
 #!/usr/bin/env python3
 import sys
+import subprocess
+import importlib
+
+def ensure(package, import_name=None):
+    name = import_name or package
+    try:
+        importlib.import_module(name)
+    except ImportError:
+        print(f"Installing {package}...", file=sys.stderr, flush=True)
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", package, "-q"],
+            stdout=sys.stderr
+        )
+
+ensure("mlx-whisper", "mlx_whisper")
+
 import json
 import mlx_whisper
 
