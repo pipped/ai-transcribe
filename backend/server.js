@@ -3,6 +3,7 @@ const multer = require('multer')
 const cors = require('cors')
 const fs = require('fs')
 const path = require('path')
+const { execFile } = require('child_process')
 
 const app = express()
 const port = 3000
@@ -34,42 +35,83 @@ const upload = multer({
       callback(new Error('Please upload an audio or video file.'))
       return
     }
-
     callback(null, true)
   }
 })
+
+function runWhisper(filePath) {
+  return new Promise((resolve, reject) => {
+    const scriptPath = path.join(__dirname, 'transcribe.py')
+    execFile('python3', [scriptPath, filePath], { timeout: 5 * 60 * 1000 }, (err, stdout, stderr) => {
+      if (err) {
+        reject(new Error(stderr || err.message))
+        return
+      }
+      try {
+        const data = JSON.parse(stdout.trim())
+        if (data.error) reject(new Error(data.error))
+        else resolve(data.transcription)
+      } catch {
+        reject(new Error('Failed to parse transcription output'))
+      }
+    })
+  })
+}
+
+// Derive summary, key points and action items from the raw transcript
+function parseTranscript(transcription) {
+  const sentences = transcription
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 20)
+
+  const summary = sentences.slice(0, 3).join(' ') || transcription.slice(0, 300)
+
+  const keyPoints = sentences
+    .filter((_, i) => i % Math.max(1, Math.floor(sentences.length / 4)) === 0)
+    .slice(0, 4)
+    .map(s => s.replace(/^[-•*]\s*/, ''))
+
+  const actionItems = sentences
+    .filter(s => /\b(need|should|must|will|action|follow|complete|review|send|schedule|update|check)\b/i.test(s))
+    .slice(0, 3)
+
+  return {
+    summary: summary || 'No summary available.',
+    keyPoints: keyPoints.length ? keyPoints : ['Transcription complete — review the full text above.'],
+    actionItems: actionItems.length ? actionItems : ['Review the transcript and identify next steps.']
+  }
+}
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
 
-app.post('/transcribe', upload.single('file'), (req, res) => {
+app.post('/transcribe', upload.single('file'), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: 'No file was uploaded.' })
     return
   }
 
-  const extension = path.extname(req.file.originalname).replace('.', '').toUpperCase() || 'MEDIA'
-  const fileName = path.parse(req.file.originalname).name.replace(/[-_]+/g, ' ')
+  const filePath = req.file.path
 
-  const result = {
-    fileName: req.file.originalname,
-    fileSize: req.file.size,
-    transcription: `Mock transcription for "${fileName}". This ${extension} upload was processed successfully and is ready to swap over to a real AI transcription provider.`,
-    summary: `This demo response shows how ${fileName} would flow through upload, transcription, summarization, and action extraction in a production-ready transcription tool.`,
-    keyPoints: [
-      'The API accepts audio and video uploads up to 50 MB.',
-      'Responses return structured transcript, summary, key points, and action items.',
-      'The current transcription output is mocked so the UI can be built before AI integration.'
-    ],
-    actionItems: [
-      'Connect a speech-to-text provider such as Whisper or another transcription API.',
-      'Persist transcript history so users can revisit previous uploads.',
-      'Add speaker labels, timestamps, and export options.'
-    ]
+  try {
+    const transcription = await runWhisper(filePath)
+    const { summary, keyPoints, actionItems } = parseTranscript(transcription)
+
+    res.json({
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+      transcription,
+      summary,
+      keyPoints,
+      actionItems
+    })
+  } catch (err) {
+    res.status(500).json({ error: `Transcription failed: ${err.message}` })
+  } finally {
+    fs.unlink(filePath, () => {})
   }
-
-  res.json(result)
 })
 
 app.use((error, _req, res, _next) => {
@@ -77,7 +119,6 @@ app.use((error, _req, res, _next) => {
     res.status(400).json({ error: 'File is too large. Upload a file smaller than 50 MB.' })
     return
   }
-
   res.status(400).json({ error: error.message || 'Something went wrong while processing the upload.' })
 })
 

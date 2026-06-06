@@ -209,12 +209,32 @@ function App({ onBack }) {
 
   const handleVoiceStart = () => {
     setError('')
-    setNotice('Recording… speak now, then click the icon again to stop.')
+    setNotice('Recording — click the icon again to stop and transcribe.')
   }
 
-  const handleVoiceStop = (duration) => {
-    if (duration > 0) {
-      setNotice(`Captured a ${duration}s voice note. Hook this up to the backend to transcribe live audio.`)
+  const handleVoiceStop = () => {
+    setNotice('Processing recording…')
+  }
+
+  const handleRecordingComplete = async (blob) => {
+    setLoading(true)
+    setError('')
+    setNotice('')
+    const formData = new FormData()
+    formData.append('file', new File([blob], 'recording.webm', { type: 'audio/webm' }))
+    try {
+      const response = await axios.post(API_URL, formData)
+      setResult(response.data)
+      saveToHistory(response.data)
+      setNotice('Recording transcribed and saved.')
+    } catch (requestError) {
+      setResult(null)
+      setError(
+        requestError.response?.data?.error ||
+          'Transcription failed. Make sure the backend is running on port 3000.'
+      )
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -397,7 +417,7 @@ function App({ onBack }) {
               <span className="h-px flex-1 bg-white/10" />
             </div>
             <div className="rounded-xl border border-white/10 bg-white/5">
-              <AIVoiceInput onStart={handleVoiceStart} onStop={handleVoiceStop} />
+              <AIVoiceInput onStart={handleVoiceStart} onStop={handleVoiceStop} onRecordingComplete={handleRecordingComplete} />
             </div>
 
             {/* Selected file */}
