@@ -497,7 +497,7 @@ function App({ onBack }) {
                   <p className="text-sm leading-7 text-white/90">{result.transcription}</p>
                 </div>
               ) : (
-                <EmptyState>Upload a recording or hit "See a sample" to watch it work.</EmptyState>
+                <EmptyState>Upload a recording or hit &ldquo;See a sample&rdquo; to watch it work.</EmptyState>
               )}
             </SectionCard>
 
@@ -575,7 +575,7 @@ function App({ onBack }) {
                     </div>
                   ))
                 ) : (
-                  <EmptyState>Assignments, readings, and anything your prof said to "make sure you know" show up here.</EmptyState>
+                  <EmptyState>Assignments, readings, and anything your prof said to &ldquo;make sure you know&rdquo; show up here.</EmptyState>
                 )}
               </div>
             </SectionCard>
