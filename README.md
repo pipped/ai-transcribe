@@ -1,32 +1,36 @@
 # AI Transcribe
 
-AI Transcribe is a small full-stack MVP for uploading audio or video and returning a structured transcription response. The current backend uses mocked AI output so the product flow is ready before connecting a real speech-to-text provider.
+A full-stack portfolio app that transcribes audio and video files locally using OpenAI Whisper — no API key, no cloud, no cost. Upload a file or record with your mic and get back a full transcript, summary, key points, and action items.
 
 ## What It Does
 
-- Uploads audio or video files to an Express backend
-- Returns a transcript preview, summary, key points, and action items
-- Includes drag-and-drop upload, a demo transcript path, copy actions, and text export
-- Saves recent transcript previews locally for a more realistic product demo
-- Shows friendly error states for missing, invalid, or oversized uploads
-- Presents the flow in a polished React + Tailwind interface
+- Drag-and-drop or mic-record audio/video → structured transcript in seconds
+- Animated landing page with WebGL shader background
+- App view with upload zone, voice input, transcript, summary, key concepts, and action items
+- Recent transcript history saved to localStorage
+- Copy, export as `.txt`, and demo transcript path
+- Friendly error states for invalid, unsupported, or oversized uploads
 
 ## Stack
 
-- Frontend: React, Vite, Tailwind CSS, Axios
-- Backend: Node.js, Express, Multer, CORS
+| Layer | Tech |
+|---|---|
+| Frontend | React 18, Vite, Tailwind CSS, Framer Motion, Three.js, Axios |
+| Backend | Node.js, Express, Multer, dotenv, express-rate-limit |
+| Transcription | Python — `mlx-whisper` (Apple Silicon) or `faster-whisper` (Windows/Linux) |
 
 ## Run Locally
 
-Backend:
+**Backend:**
 
 ```bash
 cd backend
+cp .env.example .env   # edit PORT if needed
 npm install
 npm start
 ```
 
-Frontend:
+**Frontend:**
 
 ```bash
 cd frontend
@@ -34,15 +38,38 @@ npm install
 npm run dev
 ```
 
-App URL: `http://localhost:5173`
+App: `http://localhost:5173` — Backend: `http://localhost:3000`
+
+> **Python requirement:** the transcription script requires Python 3 and pip. The required Whisper library installs automatically on the first transcription — nothing needs to be installed upfront.
+
+## Transcription — Hardware Auto-Detection
+
+The backend detects the machine at runtime and picks the fastest available Whisper backend:
+
+| Hardware | Backend | Notes |
+|---|---|---|
+| Apple Silicon Mac | `mlx-whisper` | Uses Apple MLX framework, very fast |
+| Windows / Linux + NVIDIA GPU | `faster-whisper` | CUDA with float16 |
+| Windows / Linux CPU | `faster-whisper` | CPU with int8 quantisation |
+| Intel Mac | `faster-whisper` | CPU with int8 quantisation |
+
+On first transcription, pip installs the relevant library and the Whisper `small` model weights (~500 MB) are downloaded once and cached locally. Audio never leaves your machine.
+
+The model size can be changed in `backend/transcribe.py` by swapping `"small"` for `"tiny"`, `"base"`, `"medium"`, or `"large"`.
 
 ## API
 
-`POST /transcribe`
+### `GET /health`
 
-- Form field: `file`
-- Accepted types: audio or video
-- Max file size: 50 MB
+Returns `{ "status": "ok" }`. Rate limited to 100 requests per 15 minutes per IP.
+
+### `POST /transcribe`
+
+Accepts `multipart/form-data` with a single `file` field.
+
+- **Accepted types:** audio or video (MP3, WAV, MP4, M4A, OGG, FLAC, WebM, MOV, AAC, WMA, OPUS)
+- **Max file size:** 50 MB
+- **Rate limit:** 10 requests per 15 minutes per IP
 
 Example response:
 
@@ -50,208 +77,60 @@ Example response:
 {
   "fileName": "meeting.mp3",
   "fileSize": 1234567,
-  "transcription": "Mock transcription for \"meeting\"...",
-  "summary": "This demo response shows how meeting would flow...",
-  "keyPoints": ["..."],
-  "actionItems": ["..."]
+  "transcription": "Thanks everyone for joining...",
+  "summary": "A project status update covering...",
+  "keyPoints": ["The onboarding flow was completed.", "..."],
+  "actionItems": ["Finish transcript export support.", "..."]
 }
 ```
 
+Error responses use `{ "error": "..." }` with an appropriate HTTP status code. Rate limit responses include standard `RateLimit-*` headers.
+
+## Security
+
+- **Rate limiting** — global (100 req/15 min) and per-endpoint limits via `express-rate-limit` with standard RFC 6585 headers
+- **MIME + extension validation** — both the MIME type prefix and file extension are checked against a whitelist
+- **Magic-byte validation** — the first 12 bytes of every uploaded file are compared against known audio/video signatures to catch MIME spoofing
+- **Filename sanitisation** — non-alphanumeric characters stripped, double dots collapsed to prevent path traversal
+- **Field limits** — multer rejects requests with more than one file or any unexpected non-file fields
+- **Environment variables** — all secrets loaded from `.env` (gitignored); `.env.example` documents the pattern
+
+## Environment Variables
+
+Copy `backend/.env.example` to `backend/.env` before running:
+
+```bash
+PORT=3000   # default
+```
+
+When adding a future API key, follow the pattern documented in `backend/server.js`: read from `process.env`, validate at startup, never log or return it in responses.
+
 ## Whisper Research
 
-Before implementing anything, several transcription options were evaluated.
+Before implementing, several transcription options were evaluated.
 
 ### Options considered
 
 | Option | Problem |
 |---|---|
 | AssemblyAI / Deepgram / Rev AI | Paid per-minute, requires API key — usage-based cost for a portfolio project with unknown traffic |
-| OpenAI Whisper API | Same model, hosted by OpenAI — still requires billing credentials and sends audio off-machine |
+| OpenAI Whisper API | Same model, hosted by OpenAI — requires billing credentials and sends audio off-machine |
 | `@xenova/transformers` | Critical vulnerabilities via `onnxruntime-web` → `onnx-proto` → `protobufjs` with no clean fix |
-| **`@huggingface/transformers` v3** | **0 vulnerabilities — chosen** |
+| `@huggingface/transformers` v3 | Runs Whisper via ONNX in Node.js — confirmed working but requires ffmpeg for audio decoding and is significantly slower than native bindings |
+| **`mlx-whisper` / `faster-whisper`** | **Chosen** — native bindings, hardware-accelerated, zero vulnerabilities, no API key |
 
-`@huggingface/transformers` is the v3 successor to `@xenova/transformers`, maintained by Hugging Face. It runs OpenAI's Whisper model entirely on your machine via ONNX Runtime — no API key, no cloud, no cost. The model weights (~75 MB for `whisper-tiny.en`) download once and are cached locally.
+### Node.js AudioContext issue
 
-### Problem discovered during implementation
-
-Running the pipeline in Node.js threw this error:
+During the `@huggingface/transformers` prototype, running the pipeline in Node.js threw:
 
 ```
 Unable to load audio from path/URL since AudioContext is not available in your environment.
 ```
 
-`AudioContext` is a browser API — it doesn't exist in Node.js. The library expected the runtime to handle audio decoding, which works fine in a browser but fails on a server.
-
-**The fix**: decode the audio outside the model using `ffmpeg-static`, a package that ships a bundled ffmpeg binary. ffmpeg converts any uploaded file to 16 kHz mono PCM float samples, which are then passed directly to the model as a `Float32Array`. This bypasses the `AudioContext` requirement entirely and adds support for every audio and video format ffmpeg handles.
-
-### Model sizes and tradeoffs
-
-Whisper comes in several sizes. All run locally with no API key.
-
-| Model | Size | Speed | Accuracy |
-|---|---|---|---|
-| `whisper-tiny.en` | ~75 MB | Fastest | Lower |
-| `whisper-base.en` | ~145 MB | Fast | Better |
-| `whisper-small.en` | ~460 MB | Moderate | Good |
-| `whisper-medium.en` | ~1.5 GB | Slow | High |
-
-The `.en` suffix means English-only. Multi-language versions are also available without the suffix and are slightly larger.
-
-`whisper-tiny.en` was chosen for the prototype — fast enough to verify the pipeline works, easy to swap out for a larger model later.
-
-### What was confirmed working
-
-The full pipeline was tested end-to-end:
-
-1. Audio file uploaded via the React frontend
-2. Saved temporarily to disk by Multer
-3. Decoded to raw PCM samples by ffmpeg
-4. Passed to `whisper-tiny.en` via `@huggingface/transformers`
-5. Transcription returned as JSON
-6. Temporary file deleted from disk
-
-The implementation was then removed from the codebase and documented below so the repo stays lightweight. The mock backend is sufficient for demonstrating the product flow.
-
-### Current state
-
-The backend currently returns mocked output so the repo stays portable and dependency-free. The full Whisper implementation is documented in the next section and can be dropped in with two `npm install` commands — nothing else needs to change.
-
----
-
-## Adding Real AI Transcription (Whisper — free, runs locally)
-
-The backend is structured so the mock in `server.js` can be swapped for a real model with minimal changes. The following approach was prototyped and confirmed working end-to-end.
-
-### How it works
-
-[`@huggingface/transformers`](https://github.com/huggingface/transformers.js) runs OpenAI's Whisper model entirely on your machine via ONNX Runtime — no API key, no cloud, no cost. Audio is decoded to raw PCM samples using a bundled `ffmpeg` binary before being passed to the model, which handles the Node.js limitation of having no `AudioContext`.
-
-### Install the dependencies
-
-```bash
-cd backend
-npm install @huggingface/transformers ffmpeg-static
-```
-
-`ffmpeg-static` ships a platform-specific ffmpeg binary — nothing needs to be installed globally.
-
-### Replace the mock in `server.js`
-
-Add these imports at the top:
-
-```js
-const { spawn } = require('child_process')
-const ffmpegPath = require('ffmpeg-static')
-```
-
-Add the audio decoder and model loader before the routes:
-
-```js
-const SAMPLE_RATE = 16000
-
-function decodeAudio(filePath) {
-  return new Promise((resolve, reject) => {
-    const ffmpeg = spawn(ffmpegPath, [
-      '-i', filePath,
-      '-ac', '1',
-      '-ar', String(SAMPLE_RATE),
-      '-f', 'f32le',
-      '-acodec', 'pcm_f32le',
-      'pipe:1'
-    ])
-    const chunks = []
-    let stderr = ''
-    ffmpeg.stdout.on('data', chunk => chunks.push(chunk))
-    ffmpeg.stderr.on('data', chunk => { stderr += chunk.toString() })
-    ffmpeg.on('error', reject)
-    ffmpeg.on('close', code => {
-      if (code !== 0) {
-        reject(new Error('Could not decode audio. ' + stderr.split('\n').slice(-3).join(' ')))
-        return
-      }
-      const buffer = Buffer.concat(chunks)
-      if (buffer.length < 4) {
-        reject(new Error('No audio track found in the uploaded file.'))
-        return
-      }
-      const byteLength = buffer.length - (buffer.length % 4)
-      const arrayBuffer = new ArrayBuffer(byteLength)
-      new Uint8Array(arrayBuffer).set(buffer.subarray(0, byteLength))
-      resolve(new Float32Array(arrayBuffer))
-    })
-  })
-}
-
-// Singleton — loads once on startup, reused across all requests
-let transcriberPromise = null
-
-function getTranscriber() {
-  if (!transcriberPromise) {
-    console.log('Loading Whisper model (first run downloads ~75 MB to local cache)...')
-    transcriberPromise = import('@huggingface/transformers')
-      .then(({ pipeline }) => pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en'))
-      .then(t => { console.log('Whisper model ready.'); return t })
-  }
-  return transcriberPromise
-}
-
-getTranscriber().catch(err => console.error('Model preload error:', err.message))
-```
-
-Replace the mock `POST /transcribe` handler body with:
-
-```js
-app.post('/transcribe', upload.single('file'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file was uploaded.' })
-  }
-
-  try {
-    const transcriber = await getTranscriber()
-    const audio = await decodeAudio(req.file.path)
-    const output = await transcriber(audio)
-    const transcription = output.text.trim()
-
-    const sentences = transcription.match(/[^.!?]+[.!?]+/g) || [transcription]
-    const summary = sentences.slice(0, 2).join(' ').trim() || transcription
-    const keyPoints = sentences.slice(0, 4).map(s => s.trim()).filter(s => s.length > 5)
-
-    res.json({
-      fileName: req.file.originalname,
-      fileSize: req.file.size,
-      transcription,
-      summary: summary || 'Transcription complete.',
-      keyPoints: keyPoints.length ? keyPoints : ['Transcription complete — see the full text above.'],
-      actionItems: [
-        'Review the transcription above for accuracy.',
-        'Edit any misrecognised words before sharing.',
-        'Export the transcript using the download button.'
-      ]
-    })
-  } catch (err) {
-    console.error('Transcription error:', err.message)
-    res.status(500).json({ error: 'Transcription failed: ' + err.message })
-  } finally {
-    if (req.file && req.file.path) fs.unlink(req.file.path, () => {})
-  }
-})
-```
-
-### Notes
-
-- **First run**: the model (~75 MB) is downloaded once to `~/.cache/huggingface/` and cached for all future runs
-- **Performance**: `whisper-tiny.en` runs on CPU — fast enough for short clips, slower on long recordings. Swap `Xenova/whisper-tiny.en` for `Xenova/whisper-base.en` or `Xenova/whisper-small.en` for better accuracy at the cost of speed
-- **Format support**: the ffmpeg decode step handles any audio or video format that ffmpeg supports (mp3, m4a, ogg, flac, wav, mp4, mov, etc.)
-- **Privacy**: audio never leaves your machine
+`AudioContext` is a browser API. The fix was to decode audio outside the model using `ffmpeg-static`, which ships a bundled ffmpeg binary. This worked but added ~150 MB to the install and was slower than native bindings. Moving transcription to a Python subprocess (`transcribe.py`) solved both problems.
 
 ## Portfolio Notes
 
-- This project intentionally uses mocked transcription output
-- The focus is product UX, upload flow, state handling, and full-stack structure
-- Visitors can explore the app with either a real file upload or the built-in demo transcript
-
-## Next Steps
-
-- Replace mocked transcription with a real AI transcription provider (see above)
-- Replace local transcript history with a real database
-- Support timestamps, speaker labels, and exports
+- Focus is product UX, upload flow, state management, and full-stack architecture
+- Transcription runs entirely on-device — no external dependencies or costs at runtime
+- Visitors can explore with a real file upload, mic recording, or the built-in demo transcript
